@@ -1,0 +1,26 @@
+
+version: "3.7"
+
+services:
+
+  web:
+    image: nginx:1.17
+    ports:
+      - 80:80
+    volumes:
+      - /var/www/test/php:/var/www/myapp
+      - /var/www/test/docker/site.conf:/etc/nginx/conf.d/site.conf
+    depends_on:
+      - php
+
+  php:
+    image: php-xdebug-custom
+    volumes:
+      - /var/www/test/php:/var/www/myapp
+      - /var/www/test/php.ini:/usr/local/etc/php/php.ini
+
+	composer:
+      image: composer/composer:php7
+      command: install
+      volumes: 
+        - ./app:/app
