@@ -1,8 +1,6 @@
 <?php
 
-include_once 'TicketDTO.php';
-
-class APIService extends TicketDTO
+class APIService
 {
     private bool $isToken;
     private string $subdomain;
