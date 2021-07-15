@@ -1,194 +1,49 @@
 <?php
 require __DIR__ . '/vendor/autoload.php';
 
-class Tickets
-{
-    private bool $isToken;
-    private string $subdomain;
-    private string $version;
-    private string $username;
-    private string $password;
+include_once 'APIService.php';
+include_once 'CSVService.php';
 
-    public function __construct(bool $isToken, string $subdomain, string $version, string $username, string $password)
-    {
-        $this->isToken = $isToken;
-        $this->subdomain = $subdomain;
-        $this->version = $version;
-        $this->username = $this->isToken ? $username . "/token" : $username;
-        $this->password = $password;
+echo '<form action="index.php" method="post">
+        Use a token as a password?:<input type="hidden" name="token" value="0" />
+                                   <input type="checkbox" name="token" value="1" /> <br><br>
+        Enter your subdomain:      <input type="text" name="subdomain" /><br><br>
+        Enter your username:       <input type="text" name="username" /><br><br>
+        Enter your password:       <input type="text" name="password" /><br><br>
+        <input type="submit" name="submit" value="Enter data" />
+      </form>';
+
+if (isset($_POST["token"]) && isset($_POST["subdomain"]) && isset($_POST["username"]) && isset($_POST["password"])) {
+    $token = false;
+    if ($_POST["token"]=="1") {
+        $token = true;
+    }
+    $subdomain = $_POST["subdomain"];
+    $username = $_POST["username"];
+    $password = $_POST["password"];
+
+    $client = new GuzzleHttp\Client();
+
+    $apiService = new APIService($token, $subdomain, $username, $password);
+    $data = $apiService->SaveResponse($apiService->firstResponse());
+    $tickets = $data[0];
+    $hasMore = $data[1];
+    $next = $data[2];
+    $csvHandler = new CSVService();
+    $csvHandler->headersToCSV();
+    $csvHandler->saveArrayToCSV($tickets);
+
+    while($hasMore) {
+        $data = $apiService->SaveResponse($apiService->nextResponse($next));
+        $tickets = $data[0];
+        $hasMore = $data[1];
+        $next = $data[2];
+        $csvHandler->saveArrayToCSV($tickets);
     }
 
-    public function getSubdomain() : string
-    {
-    return $this->subdomain;
-    }
-
-    public function getVersion() : string
-    {
-        return $this->version;
-    }
-
-    public function getUserName() : string
-    {
-        return $this->username;
-    }
-
-    public function getPassword() : string
-    {
-        return $this->password;
-    }
-
-    public function connect_to_api_and_save_response (string $subdomain, string $version, string $username, string $password) : void
-    {
-        $client = new GuzzleHttp\Client();
-        $response = [];
-        try {
-            $response = $client->request('GET', 'https://' . $subdomain . '.zendesk.com/api/' . $version . '/tickets.json?page[size]=100',
-                [
-                    'auth' => [$username, $password],
-                ]);
-        }
-        catch (\GuzzleHttp\Exception\GuzzleException $e) {
-        }
-
-        $result = json_decode($response->getBody(), true);
-        $count = 1;
-        $hasMore = $result["meta"]["has_more"];
-        $next = $result["links"]["next"];
-        $this->save_array_to_csv($result, $count);
-
-        while($hasMore)
-        {
-            $response = $client->request('GET', $next,
-                [
-                    'auth' => [$username, $password],
-                ]);
-
-            $result = json_decode($response->getBody(), true);
-            $count++;
-            $hasMore = $result["meta"]["has_more"];
-            $next = $result["links"]["next"];
-            $this->save_array_to_csv($result, $count);
-        }
-
-    }
-
-    private function getUserNameAndEmail($userID)
-    {
-        $client = new GuzzleHttp\Client();
-
-        try {
-            $response = $client->request('GET', 'https://' . $this->subdomain . '.zendesk.com/api/' . $this->version . '/users/' . $userID . '.json',
-                [
-                    'auth' => [$this->username, $this->password],
-                ]);
-            return [json_decode($response->getBody(), true)["user"]["name"], json_decode($response->getBody(), true)["user"]["email"]];
-        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
-        }
-    }
-
-    private function getGroupName($groupID)
-    {
-        $client = new GuzzleHttp\Client();
-
-        try {
-            $response = $client->request('GET', 'https://' . $this->subdomain . '.zendesk.com/api/' . $this->version . '/groups/' . $groupID . '.json',
-                [
-                    'auth' => [$this->username, $this->password],
-                ]);
-            return json_decode($response->getBody(), true)["group"]["name"];
-        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
-        }
-    }
-
-    private function getOrganizationName($organizationID)
-    {
-        $client = new GuzzleHttp\Client();
-
-        try {
-            $response = $client->request('GET', 'https://' . $this->subdomain . '.zendesk.com/api/' . $this->version . '/organizations/' . $organizationID . '.json',
-                [
-                    'auth' => [$this->username, $this->password],
-                ]);
-            return json_decode($response->getBody(), true)["organization"]["name"];
-        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
-        }
-    }
-
-    private function getComments($ticketID)
-    {
-        $client = new GuzzleHttp\Client();
-
-        try {
-            $response = $client->request('GET', 'https://' . $this->subdomain . '.zendesk.com/api/' . $this->version . '/tickets/' . $ticketID . '/comments.json',
-                [
-                    'auth' => [$this->username, $this->password],
-                ]);
-            $comment_str = '';
-            foreach(json_decode($response->getBody(), true)["comments"] as $comment) {
-                $comment_str .=  $comment["body"] ."\n";
-            }
-            return substr($comment_str,0,-1);
-        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
-        }
-    }
-
-    private function save_array_to_csv ($array, $count)
-    {
-
-        $headers = [
-            'Ticket ID',
-            'Description',
-            'Status',
-            'Priority',
-            'Agent ID',
-            'Agent Name',
-            'Agent Email',
-            'Contact ID',
-            'Contact Name',
-            'Contact Email',
-            'Group ID',
-            'Group Name',
-            'Company ID',
-            'Company Name',
-            'Comments'
-        ];
-
-
-        if ($count == 1)
-        {
-            $fh = fopen('tickets.csv', 'w');
-            fputcsv($fh, $headers);
-        }
-        else
-        {
-            $fh = fopen('tickets.csv', 'a');
-        }
-
-        foreach ($array['tickets'] as $ticket) {
-            fputcsv($fh, [
-                $ticket['id'],
-                $ticket['description'],
-                $ticket['status'],
-                $ticket['priority'],
-                $ticket['submitter_id'],
-                $this->getUserNameAndEmail($ticket['submitter_id'])[0],
-                $this->getUserNameAndEmail($ticket['submitter_id'])[1],
-                $ticket['requester_id'],
-                $this->getUserNameAndEmail($ticket['requester_id'])[0],
-                $this->getUserNameAndEmail($ticket['requester_id'])[1],
-                $ticket['group_id'],
-                $this->getGroupName($ticket['group_id']),
-                $ticket['organization_id'],
-                $this->getOrganizationName($ticket['organization_id']),
-                $this->getComments($ticket['id'])
-            ]);
-        }
-
-        fclose($fh);
-        print_r('Успішно записано у CSV-файл');
+    echo '<b>Successfully saved to CSV file</b>';
+} else {
+    if (isset($_POST["submit"])) {
+        echo 'Please enter all data';
     }
 }
-
-$my_tickets = new Tickets(true, 'palkoleghelp', 'v2', 'palkoleg1997@gmail.com', 'HKkUGVcuaBu0F9psl8YjmMSIIKxpuhGWJEvBjs3o');
-$my_tickets->connect_to_api_and_save_response($my_tickets->getSubdomain(), $my_tickets->getVersion(), $my_tickets->getUserName(),$my_tickets->getPassword());

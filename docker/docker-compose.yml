@@ -26,4 +26,3 @@ services:
       command: install
       depends_on:
         - php
-
