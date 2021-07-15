@@ -1,17 +1,15 @@
 <?php
-
-
 require __DIR__ . '/vendor/autoload.php';
 
 class Tickets
 {
-    private $isToken;
-    private $subdomain;
-    private $version;
-    private $username;
-    private $password;
+    private bool $isToken;
+    private string $subdomain;
+    private string $version;
+    private string $username;
+    private string $password;
 
-    public function __construct($isToken,$subdomain,$version,$username,$password)
+    public function __construct(bool $isToken, string $subdomain, string $version, string $username, string $password)
     {
         $this->isToken = $isToken;
         $this->subdomain = $subdomain;
@@ -20,59 +18,57 @@ class Tickets
         $this->password = $password;
     }
 
-    public function getSubdomain()
+    public function getSubdomain() : string
     {
     return $this->subdomain;
     }
 
-    public function getVersion()
+    public function getVersion() : string
     {
         return $this->version;
     }
 
-    public function getUserName()
+    public function getUserName() : string
     {
         return $this->username;
     }
 
-    public function getPassword()
+    public function getPassword() : string
     {
         return $this->password;
     }
 
-
-
-    public function connect_to_api_and_save_response ($subdomain, $version, $username, $password)
+    public function connect_to_api_and_save_response (string $subdomain, string $version, string $username, string $password) : void
     {
         $client = new GuzzleHttp\Client();
-
+        $response = [];
         try {
             $response = $client->request('GET', 'https://' . $subdomain . '.zendesk.com/api/' . $version . '/tickets.json?page[size]=100',
                 [
                     'auth' => [$username, $password],
                 ]);
+        }
+        catch (\GuzzleHttp\Exception\GuzzleException $e) {
+        }
+
+        $result = json_decode($response->getBody(), true);
+        $count = 1;
+        $hasMore = $result["meta"]["has_more"];
+        $next = $result["links"]["next"];
+        $this->save_array_to_csv($result, $count);
+
+        while($hasMore)
+        {
+            $response = $client->request('GET', $next,
+                [
+                    'auth' => [$username, $password],
+                ]);
 
             $result = json_decode($response->getBody(), true);
-            $count = 1;
+            $count++;
             $hasMore = $result["meta"]["has_more"];
             $next = $result["links"]["next"];
             $this->save_array_to_csv($result, $count);
-
-            while($hasMore)
-            {
-                $response = $client->request('GET', $next,
-                    [
-                        'auth' => [$username, $password],
-                    ]);
-
-                $result = json_decode($response->getBody(), true);
-                $count++;
-                $hasMore = $result["meta"]["has_more"];
-                $next = $result["links"]["next"];
-                $this->save_array_to_csv($result, $count);
-            }
-
-        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
         }
 
     }
@@ -90,7 +86,6 @@ class Tickets
         } catch (\GuzzleHttp\Exception\GuzzleException $e) {
         }
     }
-
 
     private function getGroupName($groupID)
     {
@@ -120,7 +115,6 @@ class Tickets
         }
     }
 
-
     private function getComments($ticketID)
     {
         $client = new GuzzleHttp\Client();
@@ -138,7 +132,6 @@ class Tickets
         } catch (\GuzzleHttp\Exception\GuzzleException $e) {
         }
     }
-
 
     private function save_array_to_csv ($array, $count)
     {
@@ -195,10 +188,7 @@ class Tickets
         fclose($fh);
         print_r('Успішно записано у CSV-файл');
     }
-
-
 }
 
 $my_tickets = new Tickets(true, 'palkoleghelp', 'v2', 'palkoleg1997@gmail.com', 'HKkUGVcuaBu0F9psl8YjmMSIIKxpuhGWJEvBjs3o');
-
-$jsonDecoded = $my_tickets->connect_to_api_and_save_response($my_tickets->getSubdomain(), $my_tickets->getVersion(), $my_tickets->getUserName(),$my_tickets->getPassword());
+$my_tickets->connect_to_api_and_save_response($my_tickets->getSubdomain(), $my_tickets->getVersion(), $my_tickets->getUserName(),$my_tickets->getPassword());

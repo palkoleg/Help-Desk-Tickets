@@ -14,7 +14,6 @@ RUN apt-get update -qq \
         libsqlite3-0 \
         libxml2
 
-
 RUN apt-get update -qq \
     && apt-get install -qy --no-install-recommends \
         autoconf \
@@ -41,4 +40,3 @@ UN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/
 RUN pecl install xdebug-3.0.4 && docker-php-ext-enable xdebug
 
 CMD ["php-fpm"]
-
