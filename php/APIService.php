@@ -149,10 +149,10 @@ class APIService
         } catch (GuzzleException $e) {
             echo $e;
         }
-        $comment = '';
+        $fullComment = '';
         foreach(json_decode($response->getBody(), true)['comments'] as $comment) {
-            $comment .=  $comment['body'] . PHP_EOL;
+            $fullComment .=  $comment['body'] . PHP_EOL;
         }
-        return substr($comment, 0, -1);
+        return substr($fullComment, 0, -1);
     }
 }
