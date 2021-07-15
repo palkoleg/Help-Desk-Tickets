@@ -1,4 +1,5 @@
 <?php
+
 require __DIR__ . '/vendor/autoload.php';
 
 include_once 'APIService.php';
@@ -13,19 +14,22 @@ echo '<form action="index.php" method="post">
         <input type="submit" name="submit" value="Enter data" />
       </form>';
 
-if (isset($_POST["token"]) && isset($_POST["subdomain"]) && isset($_POST["username"]) && isset($_POST["password"])) {
+if (!empty($_POST['subdomain'])
+    && !empty($_POST['username'])
+    && !empty($_POST['password'])
+) {
     $token = false;
-    if ($_POST["token"]=="1") {
+    if ($_POST['token'] == '1') {
         $token = true;
     }
-    $subdomain = $_POST["subdomain"];
-    $username = $_POST["username"];
-    $password = $_POST["password"];
+    $subdomain = $_POST['subdomain'];
+    $username = $_POST['username'];
+    $password = $_POST['password'];
 
     $client = new GuzzleHttp\Client();
 
     $apiService = new APIService($token, $subdomain, $username, $password);
-    $data = $apiService->SaveResponse($apiService->firstResponse());
+    $data = $apiService->getResponse($apiService->firstResponse());
     $tickets = $data[0];
     $hasMore = $data[1];
     $next = $data[2];
@@ -34,7 +38,7 @@ if (isset($_POST["token"]) && isset($_POST["subdomain"]) && isset($_POST["userna
     $csvHandler->saveArrayToCSV($tickets);
 
     while($hasMore) {
-        $data = $apiService->SaveResponse($apiService->nextResponse($next));
+        $data = $apiService->getResponse($apiService->nextResponse($next));
         $tickets = $data[0];
         $hasMore = $data[1];
         $next = $data[2];
@@ -43,7 +47,7 @@ if (isset($_POST["token"]) && isset($_POST["subdomain"]) && isset($_POST["userna
 
     echo '<b>Successfully saved to CSV file</b>';
 } else {
-    if (isset($_POST["submit"])) {
-        echo 'Please enter all data';
+    if (!empty($_POST['submit'])) {
+        echo '<b>Please enter all data</b>';
     }
 }

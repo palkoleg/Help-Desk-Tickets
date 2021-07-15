@@ -112,4 +112,3 @@ class TicketDTO
         return $this->comments;
     }
 }
-?>

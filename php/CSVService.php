@@ -2,22 +2,14 @@
 
 include_once 'TicketDTO.php';
 
-class CSVService extends TicketDTO
+class CSVService
 {
-
-    private string $nameOfFile;
+    private string $filename;
 
     public function __construct()
     {
-        $this->nameOfFile = 'tickets.csv';
+        $this->filename = 'tickets.csv';
     }
-
-
-    public function getNameOfFile(): string
-    {
-        return $this->nameOfFile;
-    }
-
 
     public function headersToCSV(): void
     {
@@ -39,14 +31,17 @@ class CSVService extends TicketDTO
             'Comments'
         ];
 
-        $fh = fopen($this->nameOfFile, 'w');
+        $fh = fopen($this->filename, 'w');
         fputcsv($fh, $headers);
         fclose($fh);
     }
 
+    /**
+     * @param TicketDTO[] $ticketDTOs
+     */
     public function saveArrayToCSV(array $ticketDTOs): void
     {
-        $fh = fopen($this->nameOfFile, 'a');
+        $fh = fopen($this->filename, 'a');
 
         foreach ($ticketDTOs as $ticket) {
             fputcsv($fh, [
@@ -71,4 +66,3 @@ class CSVService extends TicketDTO
         fclose($fh);
     }
 }
-?>
